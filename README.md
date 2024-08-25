@@ -1,6 +1,7 @@
 # Filemanager
 
 ## Todos
+- [ ] fix unselection, currently add more selectino starts
 - [ ] using `j`,`k` for dialog navigation
 - [ ] pressing `m` to move files and folders to other pane
 - [ ] implement actions menu
