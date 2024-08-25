@@ -54,23 +54,62 @@ def get_directory_contents(path):
     
     return contents
 
-# Get the directory contents for both panes
-left_paths = get_directory_contents(LEFT_PANE_PATH)
-right_paths = get_directory_contents(RIGHT_PANE_PATH)
+def create_delete_dialog():
+    selected_files_count = len(selected_items)
+    confirmation_text = urwid.Text(f"Are you sure you want to delete {selected_files_count} file(s) and/or folder(s)?")
+    confirm_button = urwid.Button("Yes")
+    cancel_button = urwid.Button("No")
+    
+    urwid.connect_signal(confirm_button, 'click', on_confirm_delete)
+    urwid.connect_signal(cancel_button, 'click', on_cancel_delete)
+    
+    button_box = urwid.Pile([
+        urwid.AttrMap(confirm_button, None, focus_map='reversed'),
+        urwid.AttrMap(cancel_button, None, focus_map='reversed')
+    ])
+    
+    dialog = urwid.Pile([
+        confirmation_text,
+        urwid.Divider(),
+        button_box
+    ])
+    
+    return urwid.Overlay(
+        urwid.LineBox(dialog, title="Confirm Delete"),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 30),
+        height=('relative', 20),
+        min_width=20,
+        min_height=5
+    )
 
-# Create ListBox widgets for each pane
-left_listbox = urwid.ListBox(urwid.SimpleListWalker(left_paths))
-right_listbox = urwid.ListBox(urwid.SimpleListWalker(right_paths))
+def on_confirm_delete(button):
+    global selected_items
+    if not selected_items:
+        main_loop.widget = columns
+        return
 
-# Add borders to the panes and embed the ListBoxes
-left_pane = urwid.LineBox(left_listbox, title=f"Left Pane: {LEFT_PANE_PATH}")
-right_pane = urwid.LineBox(right_listbox, title=f"Right Pane: {RIGHT_PANE_PATH}")
+    for item_path in selected_items:
+        print("delete")
+        try:
+            if os.path.isdir(item_path):
+                # Ensure directory is empty before removing
+                os.rmdir(item_path)
+            else:
+                os.remove(item_path)
+        except Exception as e:
+            # Handle the error (e.g., show a message to the user)
+            print(f"Error deleting {item_path}: {e}")
+    
+    selected_items.clear()
+    update_directory(0, LEFT_PANE_PATH)  # Refresh the left pane
+    update_directory(1, RIGHT_PANE_PATH)  # Refresh the right pane
+    main_loop.widget = columns  # Close the dialog
 
-# Combine the two panes horizontally
-columns = urwid.Columns([left_pane, right_pane])
-
-# Track current focus (0 for left pane, 1 for right pane)
-current_focus = 0
+def on_cancel_delete(button):
+    main_loop.widget = columns  # Close the dialog
 
 def update_focus(pane, direction):
     listbox = left_listbox if pane == 0 else right_listbox
@@ -119,6 +158,8 @@ def handle_input(key):
         update_focus(current_focus, 1)
     elif key in ('k', 'up'):
         update_focus(current_focus, -1)
+    elif key == 'd':
+        main_loop.widget = create_delete_dialog()
     elif key == 'l':
         current_focus = 1
         columns.set_focus(1)
@@ -139,10 +180,28 @@ def handle_input(key):
         parent_path = os.path.dirname(current_path)
         if parent_path != current_path:  # Prevent going above the root directory
             update_directory(current_focus, parent_path)
-    elif key == ' ':  # Add space key functionality
+    elif key == ' ':
         toggle_selection(current_focus)
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
+
+# Get the directory contents for both panes
+left_paths = get_directory_contents(LEFT_PANE_PATH)
+right_paths = get_directory_contents(RIGHT_PANE_PATH)
+
+# Create ListBox widgets for each pane
+left_listbox = urwid.ListBox(urwid.SimpleListWalker(left_paths))
+right_listbox = urwid.ListBox(urwid.SimpleListWalker(right_paths))
+
+# Add borders to the panes and embed the ListBoxes
+left_pane = urwid.LineBox(left_listbox, title=f"Left Pane: {LEFT_PANE_PATH}")
+right_pane = urwid.LineBox(right_listbox, title=f"Right Pane: {RIGHT_PANE_PATH}")
+
+# Combine the two panes horizontally
+columns = urwid.Columns([left_pane, right_pane])
+
+# Track current focus (0 for left pane, 1 for right pane)
+current_focus = 0
 
 # Initialize focus for both panes
 if left_paths:
@@ -158,6 +217,7 @@ palette = [
 
 # Create a main loop to render the UI
 main_loop = urwid.MainLoop(columns, unhandled_input=handle_input, palette=palette)
+
 # Run the main loop
 if __name__ == "__main__":
     main_loop.run()
