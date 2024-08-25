@@ -80,22 +80,39 @@ def update_focus(pane, direction):
         # Scroll the ListBox if necessary
         body.set_focus(new_position)
 
+def update_directory(new_path):
+    global LEFT_PANE_PATH, left_listbox, left_pane
+    LEFT_PANE_PATH = new_path
+    left_paths = get_directory_contents(LEFT_PANE_PATH)
+    left_listbox.body[:] = left_paths
+    left_pane.set_title(f"Left Pane: {LEFT_PANE_PATH}")
+
 # Function to handle keypresses for navigation
 def handle_input(key):
     global current_focus
-
     if key in ('j', 'down'):
         update_focus(current_focus, 1)
     elif key in ('k', 'up'):
         update_focus(current_focus, -1)
     elif key == 'l':
-        # Switch focus to the right pane
         current_focus = 1
         columns.set_focus(1)
     elif key == 'h':
-        # Switch focus to the left pane
         current_focus = 0
         columns.set_focus(0)
+    elif key == 'enter':
+        if current_focus == 0:  # Only handle Enter for the left pane
+            focus_widget, focus_position = left_listbox.body.get_focus()
+            if focus_widget and focus_position is not None:
+                item_name = focus_widget.base_widget.text.split(' ', 1)[-1]
+                new_path = os.path.join(LEFT_PANE_PATH, item_name)
+                if os.path.isdir(new_path):
+                    update_directory(new_path)
+    elif key == 'backspace':
+        if current_focus == 0:  # Only handle Backspace for the left pane
+            parent_path = os.path.dirname(LEFT_PANE_PATH)
+            if parent_path != LEFT_PANE_PATH:  # Prevent going above the root directory
+                update_directory(parent_path)
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
 
