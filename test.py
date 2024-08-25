@@ -5,7 +5,9 @@ import urwid
 LEFT_PANE_PATH = "/home/towelie/projects/"  # Change this to a valid path on your system
 RIGHT_PANE_PATH = "/etc"  # Change this to a valid path on your system
 
-# Define attribute styles
+# Define symbols
+FOLDER_SYMBOL = "📁"  # You can also use "" or any other Nerd Font symbol
+
 def create_text_widget(text, focus=False):
     return urwid.AttrMap(urwid.Text(text), None, focus_map='reversed')
 
@@ -18,8 +20,35 @@ def get_directory_contents(path):
     except FileNotFoundError:
         items = ["Path not found"]
     
-    # Create a list of urwid.Text widgets for each item
-    return [create_text_widget(item) for item in items]
+    # Separate directories and files
+    directories = []
+    files = []
+
+    for item in items:
+        item_path = os.path.join(path, item)
+        if os.path.isdir(item_path):
+            directories.append(item)
+        else:
+            files.append(item)
+    
+    # Sort directories and files alphabetically
+    directories.sort()
+    files.sort()
+
+    # Combine sorted directories and files
+    sorted_items = directories + files
+
+    # Create urwid.Text widgets for each item with appropriate symbols
+    contents = []
+    for item in sorted_items:
+        item_path = os.path.join(path, item)
+        if os.path.isdir(item_path):
+            item_display = f"{FOLDER_SYMBOL} {item}"
+        else:
+            item_display = f"  {item}"
+        contents.append(create_text_widget(item_display))
+    
+    return contents
 
 # Get the directory contents for both panes
 left_paths = get_directory_contents(LEFT_PANE_PATH)
