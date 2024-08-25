@@ -1,13 +1,23 @@
 import os
 import urwid
 import subprocess
+import argparse
 
-# Define fixed paths for left and right panes
-LEFT_PANE_PATH = "/home/towelie/projects/"  # Change this to a valid path on your system
-RIGHT_PANE_PATH = "/etc"  # Change this to a valid path on your system
+# Define default paths
+DEFAULT_LEFT_PANE_PATH = "/home/towelie/"
+DEFAULT_RIGHT_PANE_PATH = "/home/towelie/"
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description="A simple file manager.")
+parser.add_argument('path', nargs='?', default=DEFAULT_LEFT_PANE_PATH, help="Initial path for the left pane.")
+args = parser.parse_args()
+
+# Set paths based on arguments
+LEFT_PANE_PATH = args.path
+RIGHT_PANE_PATH = DEFAULT_RIGHT_PANE_PATH
 
 # Define symbols
-FOLDER_SYMBOL = "📁"  # You can also use "" or any other Nerd Font symbol
+FOLDER_SYMBOL = "📁"
 
 selected_items = set()
 
