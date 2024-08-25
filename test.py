@@ -8,7 +8,11 @@ RIGHT_PANE_PATH = "/etc"  # Change this to a valid path on your system
 # Define symbols
 FOLDER_SYMBOL = "📁"  # You can also use "" or any other Nerd Font symbol
 
-def create_text_widget(text, focus=False):
+selected_items = set()
+
+def create_text_widget(text, path, focus=False):
+    if path in selected_items:
+        return urwid.AttrMap(urwid.Text('* ' + text), 'selected', focus_map='selected_focus')
     return urwid.AttrMap(urwid.Text(text), None, focus_map='reversed')
 
 def get_directory_contents(path):
@@ -46,7 +50,7 @@ def get_directory_contents(path):
             item_display = f"{FOLDER_SYMBOL} {item}"
         else:
             item_display = f"  {item}"
-        contents.append(create_text_widget(item_display))
+        contents.append(create_text_widget(item_display, item_path))
     
     return contents
 
@@ -93,6 +97,21 @@ def update_directory(pane, new_path):
         right_listbox.body[:] = paths
         right_pane.set_title(f"Right Pane: {RIGHT_PANE_PATH}")
 
+def toggle_selection(pane):
+    listbox = left_listbox if pane == 0 else right_listbox
+    current_path = LEFT_PANE_PATH if pane == 0 else RIGHT_PANE_PATH
+    focus_widget, focus_position = listbox.body.get_focus()
+    if focus_widget and focus_position is not None:
+        item_name = focus_widget.base_widget.text.split(' ', 1)[-1]
+        item_path = os.path.join(current_path, item_name)
+        if item_path in selected_items:
+            selected_items.remove(item_path)
+        else:
+            selected_items.add(item_path)
+        # Update the widget to reflect the new selection state
+        new_widget = create_text_widget(focus_widget.base_widget.text, item_path)
+        listbox.body[focus_position] = new_widget
+
 # Function to handle keypresses for navigation
 def handle_input(key):
     global current_focus
@@ -120,6 +139,8 @@ def handle_input(key):
         parent_path = os.path.dirname(current_path)
         if parent_path != current_path:  # Prevent going above the root directory
             update_directory(current_focus, parent_path)
+    elif key == ' ':  # Add space key functionality
+        toggle_selection(current_focus)
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
 
@@ -129,9 +150,14 @@ if left_paths:
 if right_paths:
     right_listbox.body.set_focus(0)
 
-# Create a main loop to render the UI
-main_loop = urwid.MainLoop(columns, unhandled_input=handle_input, palette=[('reversed', 'standout', '')])
+palette = [
+    ('reversed', 'standout', ''),
+    ('selected', 'white', 'dark blue'),
+    ('selected_focus', 'white', 'light blue'),
+]
 
+# Create a main loop to render the UI
+main_loop = urwid.MainLoop(columns, unhandled_input=handle_input, palette=palette)
 # Run the main loop
 if __name__ == "__main__":
     main_loop.run()
