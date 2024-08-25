@@ -80,12 +80,18 @@ def update_focus(pane, direction):
         # Scroll the ListBox if necessary
         body.set_focus(new_position)
 
-def update_directory(new_path):
-    global LEFT_PANE_PATH, left_listbox, left_pane
-    LEFT_PANE_PATH = new_path
-    left_paths = get_directory_contents(LEFT_PANE_PATH)
-    left_listbox.body[:] = left_paths
-    left_pane.set_title(f"Left Pane: {LEFT_PANE_PATH}")
+def update_directory(pane, new_path):
+    global LEFT_PANE_PATH, RIGHT_PANE_PATH, left_listbox, right_listbox, left_pane, right_pane
+    if pane == 0:
+        LEFT_PANE_PATH = new_path
+        paths = get_directory_contents(LEFT_PANE_PATH)
+        left_listbox.body[:] = paths
+        left_pane.set_title(f"Left Pane: {LEFT_PANE_PATH}")
+    else:
+        RIGHT_PANE_PATH = new_path
+        paths = get_directory_contents(RIGHT_PANE_PATH)
+        right_listbox.body[:] = paths
+        right_pane.set_title(f"Right Pane: {RIGHT_PANE_PATH}")
 
 # Function to handle keypresses for navigation
 def handle_input(key):
@@ -101,18 +107,19 @@ def handle_input(key):
         current_focus = 0
         columns.set_focus(0)
     elif key == 'enter':
-        if current_focus == 0:  # Only handle Enter for the left pane
-            focus_widget, focus_position = left_listbox.body.get_focus()
-            if focus_widget and focus_position is not None:
-                item_name = focus_widget.base_widget.text.split(' ', 1)[-1]
-                new_path = os.path.join(LEFT_PANE_PATH, item_name)
-                if os.path.isdir(new_path):
-                    update_directory(new_path)
+        listbox = left_listbox if current_focus == 0 else right_listbox
+        current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
+        focus_widget, focus_position = listbox.body.get_focus()
+        if focus_widget and focus_position is not None:
+            item_name = focus_widget.base_widget.text.split(' ', 1)[-1]
+            new_path = os.path.join(current_path, item_name)
+            if os.path.isdir(new_path):
+                update_directory(current_focus, new_path)
     elif key == 'backspace':
-        if current_focus == 0:  # Only handle Backspace for the left pane
-            parent_path = os.path.dirname(LEFT_PANE_PATH)
-            if parent_path != LEFT_PANE_PATH:  # Prevent going above the root directory
-                update_directory(parent_path)
+        current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
+        parent_path = os.path.dirname(current_path)
+        if parent_path != current_path:  # Prevent going above the root directory
+            update_directory(current_focus, parent_path)
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
 
