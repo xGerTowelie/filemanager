@@ -92,7 +92,6 @@ def on_confirm_delete(button):
         return
 
     for item_path in selected_items:
-        print("delete")
         try:
             if os.path.isdir(item_path):
                 # Ensure directory is empty before removing
@@ -141,7 +140,7 @@ def toggle_selection(pane):
     current_path = LEFT_PANE_PATH if pane == 0 else RIGHT_PANE_PATH
     focus_widget, focus_position = listbox.body.get_focus()
     if focus_widget and focus_position is not None:
-        item_name = focus_widget.base_widget.text.split(' ', 1)[-1]
+        item_name = focus_widget.base_widget.text.split(' ', 1)[-1].strip()  # Strip any leading/trailing whitespace
         item_path = os.path.join(current_path, item_name)
         if item_path in selected_items:
             selected_items.remove(item_path)
@@ -171,7 +170,7 @@ def handle_input(key):
         current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
         focus_widget, focus_position = listbox.body.get_focus()
         if focus_widget and focus_position is not None:
-            item_name = focus_widget.base_widget.text.split(' ', 1)[-1]
+            item_name = focus_widget.base_widget.text.split(' ', 1)[-1].strip()  # Strip any leading/trailing whitespace
             new_path = os.path.join(current_path, item_name)
             if os.path.isdir(new_path):
                 update_directory(current_focus, new_path)
