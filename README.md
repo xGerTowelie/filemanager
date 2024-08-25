@@ -1,18 +1,20 @@
 # Filemanager
 
 ## Todos
-- [ ] using j,k for dialog navigation
-- [ ] pressing m to move files and folders to other pane
+- [ ] using `j`,`k` for dialog navigation
+- [ ] pressing `m` to move files and folders to other pane
 - [ ] implement actions menu
 - [ ] add select all over actions menu
 - [ ] implement file or folder add like neo-tree
-- [ ] press esc to cancel selection
-- [ ] press esc to cancel dialog
+- [ ] press `esc`` to cancel selection
+- [ ] press `esc` to cancel dialog
+- [ ] press `r` to rename
 - [ ] fix pane title
 - [ ] on navigatoin select first of list
-- [ ] add favorites, add them to over action menu, press f to quick navigate
+- [ ] add favorites, add them to over action menu, press `f` to quick navigate
 
 ## Current Features
+- [x] press `q` to exit
 - [x] navigation on `j`, `k` for up and down
 - [x] navigation on `h`, `l` for switching panes
 - [x] press `enter` to navigate into a folder
