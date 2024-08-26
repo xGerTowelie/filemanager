@@ -28,10 +28,9 @@ def copy_items(source_path, dest_path):
     for item in selected_items:
         dest_item = os.path.join(dest_path, os.path.basename(item))
         if os.path.exists(dest_item):
-            if not confirm_overwrite(dest_item):
-                continue
+            raise FileExistsError(dest_item)
         if os.path.isdir(item):
-            shutil.copytree(item, dest_item, dirs_exist_ok=True)
+            shutil.copytree(item, dest_item)
         else:
             shutil.copy2(item, dest_item)
 
@@ -39,21 +38,18 @@ def move_items(source_path, dest_path):
     for item in selected_items:
         dest_item = os.path.join(dest_path, os.path.basename(item))
         if os.path.exists(dest_item):
-            if not confirm_overwrite(dest_item):
-                continue
+            raise FileExistsError(dest_item)
         shutil.move(item, dest_item)
 
-def create_overwrite_dialog(item):
-    text = urwid.Text(f"'{os.path.basename(item)}' already exists. Overwrite?")
-    yes_button = urwid.Button("Yes", on_press=lambda _: on_overwrite_confirm(True))
-    no_button = urwid.Button("No", on_press=lambda _: on_overwrite_confirm(False))
+def create_overwrite_dialog(operation):
+    text = urwid.Text(f"Some files already exist. Overwrite?")
+    ok_button = urwid.Button("OK", on_press=lambda _: on_overwrite_confirm(True, operation))
     
-    buttons = urwid.Columns([
-        ('weight', 1, urwid.AttrMap(yes_button, None, focus_map='reversed')),
-        ('weight', 1, urwid.AttrMap(no_button, None, focus_map='reversed')),
-    ])
-    
-    dialog_body = [text, urwid.Divider(), buttons]
+    dialog_body = [
+        text,
+        urwid.Divider(),
+        urwid.AttrMap(ok_button, None, focus_map='reversed')
+    ]
     dialog = NavigableDialog(dialog_body)
     
     return urwid.Overlay(
@@ -69,15 +65,13 @@ def create_overwrite_dialog(item):
 
 def create_copy_move_dialog(operation):
     text = urwid.Text(f"Are you sure you want to {operation} {len(selected_items)} item(s)?")
-    yes_button = urwid.Button("Yes", on_press=lambda _: on_copy_move_confirm(True, operation))
-    no_button = urwid.Button("No", on_press=lambda _: on_copy_move_confirm(False, operation))
+    ok_button = urwid.Button("OK", on_press=lambda _: on_copy_move_confirm(True, operation))
     
-    buttons = urwid.Columns([
-        ('weight', 1, urwid.AttrMap(yes_button, None, focus_map='reversed')),
-        ('weight', 1, urwid.AttrMap(no_button, None, focus_map='reversed')),
-    ])
-    
-    dialog_body = [text, urwid.Divider(), buttons]
+    dialog_body = [
+        text,
+        urwid.Divider(),
+        urwid.AttrMap(ok_button, None, focus_map='reversed')
+    ]
     dialog = NavigableDialog(dialog_body)
     
     return urwid.Overlay(
@@ -100,14 +94,24 @@ def on_copy_move_confirm(confirmed, operation):
         source_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
         dest_path = RIGHT_PANE_PATH if current_focus == 0 else LEFT_PANE_PATH
         
-        if operation == "copy":
-            copy_items(source_path, dest_path)
-        elif operation == "move":
-            move_items(source_path, dest_path)
-        
+        try:
+            if operation == "copy":
+                copy_items(source_path, dest_path)
+            elif operation == "move":
+                move_items(source_path, dest_path)
+        except FileExistsError:
+            main_loop.widget = create_overwrite_dialog(operation)
+            return
+
         update_directory(0, LEFT_PANE_PATH)
         update_directory(1, RIGHT_PANE_PATH)
-        selected_items.clear()
+        clear_selected_items()
+
+def clear_selected_items():
+    global selected_items
+    selected_items.clear()
+    update_directory(0, LEFT_PANE_PATH)
+    update_directory(1, RIGHT_PANE_PATH)
 
 def create_overwrite_dialog(item):
     text = urwid.Text(f"'{os.path.basename(item)}' already exists. Overwrite?")
@@ -138,10 +142,38 @@ def confirm_overwrite(item):
     main_loop.run()
     return overwrite_confirmed
 
-def on_overwrite_confirm(confirmed):
-    global overwrite_confirmed
-    overwrite_confirmed = confirmed
-    raise urwid.ExitMainLoop()
+def on_overwrite_confirm(confirmed, operation):
+    main_loop.widget = columns  # Close the dialog
+    if confirmed:
+        source_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
+        dest_path = RIGHT_PANE_PATH if current_focus == 0 else LEFT_PANE_PATH
+        
+        if operation == "copy":
+            copy_items_force(source_path, dest_path)
+        elif operation == "move":
+            move_items_force(source_path, dest_path)
+        
+        update_directory(0, LEFT_PANE_PATH)
+        update_directory(1, RIGHT_PANE_PATH)
+        clear_selected_items()
+
+def copy_items_force(source_path, dest_path):
+    for item in selected_items:
+        dest_item = os.path.join(dest_path, os.path.basename(item))
+        if os.path.isdir(item):
+            shutil.copytree(item, dest_item, dirs_exist_ok=True)
+        else:
+            shutil.copy2(item, dest_item)
+
+def move_items_force(source_path, dest_path):
+    for item in selected_items:
+        dest_item = os.path.join(dest_path, os.path.basename(item))
+        if os.path.exists(dest_item):
+            if os.path.isdir(dest_item):
+                shutil.rmtree(dest_item)
+            else:
+                os.remove(dest_item)
+        shutil.move(item, dest_item)
 
 def confirm_overwrite(item):
     main_loop.widget = create_overwrite_dialog(item)
