@@ -417,19 +417,37 @@ class NavigableDialog(urwid.WidgetWrap):
     def cancel_action(self):
         main_loop.widget = columns  # Close the dialog
 
-class AddDialog(NavigableDialog):
+class AddDialog(urwid.WidgetWrap):
     def __init__(self):
         self.edit = urwid.Edit("Enter file/directory name: ")
-        super().__init__([self.edit, urwid.Divider()])
+        self.ok_button = urwid.Button("OK", on_press=self.on_ok)
+        self.cancel_button = urwid.Button("Cancel", on_press=self.on_cancel)
+        
+        pile = urwid.Pile([
+            self.edit,
+            urwid.Divider(),
+            urwid.Columns([
+                ('pack', self.ok_button),
+                ('pack', self.cancel_button)
+            ])
+        ])
+        
+        super().__init__(urwid.LineBox(pile, title="Add File/Directory"))
+
+    def on_ok(self, button):
+        on_add_confirm(self.edit.edit_text)
+
+    def on_cancel(self, button):
+        main_loop.widget = columns
 
     def keypress(self, size, key):
         if key == 'enter':
-            self.confirm_action()
-        else:
-            super().keypress(size, key)
-
-    def confirm_action(self):
-        on_add_confirm(self.edit.edit_text)
+            self.on_ok(None)
+            return None
+        elif key == 'esc':
+            self.on_cancel(None)
+            return None
+        return super().keypress(size, key)
 
 class RenameDialog(NavigableDialog):
     def __init__(self, old_name):
@@ -445,16 +463,39 @@ class RenameDialog(NavigableDialog):
     def confirm_action(self):
         on_rename_confirm(self.edit.get_edit_text())
 
+def create_add_dialog():
+    return urwid.Overlay(
+        AddDialog(),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 50),
+        height=('relative', 30),
+        min_width=20,
+        min_height=5
+    )
+
 def on_add_confirm(name):
     current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
     new_path = os.path.join(current_path, name)
     
-    if name.endswith('/'):
-        os.makedirs(new_path, exist_ok=True)
-    else:
-        open(new_path, 'a').close()
-    
-    update_directory(current_focus, current_path)
+    try:
+        if name.endswith('/'):
+            # It's a directory
+            os.makedirs(new_path, exist_ok=True)
+        else:
+            # It's a file
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            # Create the file
+            open(new_path, 'a').close()
+        
+        update_directory(current_focus, current_path)
+    except OSError as e:
+        error_dialog = create_error_dialog(f"Error creating {name}: {str(e)}")
+        main_loop.widget = error_dialog
+        return
+
     main_loop.widget = columns
 
 def on_rename_confirm(new_name):
@@ -522,7 +563,7 @@ def handle_input(key):
         toggle_selection(current_focus)
 
     elif key == 'a':
-        main_loop.widget = urwid.Overlay(AddDialog(), columns, align='center', valign='middle', width=('relative', 40), height=('relative', 20))
+        main_loop.widget = create_add_dialog()
 
     elif key == 'r':
         focus_widget, _ = (left_listbox if current_focus == 0 else right_listbox).body.get_focus()
