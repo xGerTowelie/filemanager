@@ -26,7 +26,6 @@ def create_text_widget(text, path, focus=False):
         return urwid.AttrMap(urwid.Text('* ' + text), 'selected', focus_map='selected_focus')
     return urwid.AttrMap(urwid.Text(text), None, focus_map='reversed')
 
-
 def get_directory_contents(path):
     try:
         items = os.listdir(path)
@@ -130,7 +129,7 @@ def on_cancel_delete(button):
     main_loop.widget = columns  # Close the dialog
 
 def create_action_dialog():
-    action_items = ["Open in Terminal", "Open in Nvim"]
+    action_items = ["Open in Terminal", "Open in Nvim", "Select/Deselect All"]
     action_widgets = []
     for action in action_items:
         button = urwid.Button(action)
@@ -144,25 +143,57 @@ def create_action_dialog():
         align='center',
         valign='middle',
         width=('relative', 30),
-        height=('relative', 20),
+        height=('relative', 30),
         min_width=20,
-        min_height=5
+        min_height=8
     )
 
 def on_action_select(action):
     global selected_items
-    if not selected_items:
-        main_loop.widget = columns
-        return
+    current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
 
-    # Perform the selected action on the first item in the selection
-    item_path = list(selected_items)[0]
     if action == "Open in Terminal":
-        subprocess.Popen(['gnome-terminal', '--', 'bash', '-c', f'cd {os.path.dirname(item_path)}; exec bash'])
+        with open(os.path.expanduser("~/.last_fm_path"), "w") as f:
+            f.write(current_path)
+        raise urwid.ExitMainLoop()
     elif action == "Open in Nvim":
-        subprocess.Popen(['nvim', item_path])
+        if selected_items:
+            item_path = list(selected_items)[0]
+            subprocess.Popen(['nvim', item_path])
+    elif action == "Select/Deselect All":
+        toggle_select_all(current_focus)
     
     main_loop.widget = columns  # Close the dialog
+
+def toggle_select_all(pane):
+    global selected_items
+    listbox = left_listbox if pane == 0 else right_listbox
+    current_path = LEFT_PANE_PATH if pane == 0 else RIGHT_PANE_PATH
+
+    all_items = set(os.path.join(current_path, item.base_widget.text.split(' ', 1)[-1].strip())
+                    for item in listbox.body)
+
+    if all_items.issubset(selected_items):
+        # If all items are selected, deselect all
+        selected_items -= all_items
+    else:
+        # Otherwise, select all
+        selected_items |= all_items
+
+    # Update the display
+    for i, item in enumerate(listbox.body):
+        item_path = os.path.join(current_path, item.base_widget.text.split(' ', 1)[-1].strip())
+        is_folder = item.base_widget.text.startswith(FOLDER_SYMBOL) or item.base_widget.text.startswith(f"* {FOLDER_SYMBOL}")
+        
+        if item_path in selected_items:
+            prefix = f"* {FOLDER_SYMBOL}" if is_folder else "*   "
+        else:
+            prefix = f"{FOLDER_SYMBOL} " if is_folder else "  "
+        
+        new_text = f"{prefix} {os.path.basename(item_path)}"
+        item.original_widget.set_text(new_text)
+        item._attr_map = {None: 'selected' if item_path in selected_items else None}
+        item._focus_map = {None: 'selected_focus' if item_path in selected_items else 'reversed'}
 
 def update_focus(pane, direction):
     listbox = left_listbox if pane == 0 else right_listbox
@@ -293,5 +324,13 @@ main_loop = urwid.MainLoop(columns, unhandled_input=handle_input, palette=palett
 
 # Run the main loop
 if __name__ == "__main__":
-    main_loop.run()
-
+    try:
+        main_loop.run()
+    finally:
+        # Check if we need to open a terminal
+        last_path_file = os.path.expanduser("~/.last_fm_path")
+        if os.path.exists(last_path_file):
+            with open(last_path_file, "r") as f:
+                last_path = f.read().strip()
+            os.remove(last_path_file)
+            os.system(f"cd {last_path} && exec $SHELL")

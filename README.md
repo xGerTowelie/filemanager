@@ -1,11 +1,11 @@
 # Filemanager
 
 ## Todos
-- [ ] fix unselection, currently add more selectino starts
-- [ ] using `j`,`k` for dialog navigation
+- [x] fix unselection, currently add more selectino starts
+- [x] using `j`,`k` for dialog navigation
 - [ ] pressing `m` to move files and folders to other pane
-- [ ] implement actions menu
-- [ ] add select all over actions menu
+- [x] implement actions menu
+- [x] add select all over actions menu
 - [ ] implement file or folder add like neo-tree
 - [ ] press `esc`` to cancel selection
 - [ ] press `esc` to cancel dialog
