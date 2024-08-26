@@ -192,15 +192,27 @@ def toggle_selection(pane):
     current_path = LEFT_PANE_PATH if pane == 0 else RIGHT_PANE_PATH
     focus_widget, focus_position = listbox.body.get_focus()
     if focus_widget and focus_position is not None:
-        item_name = focus_widget.base_widget.text.split(' ', 1)[-1].strip()
+        full_text = focus_widget.base_widget.text
+        is_folder = full_text.startswith(FOLDER_SYMBOL) or full_text.startswith(f"* {FOLDER_SYMBOL}")
+        
+        if is_folder:
+            item_name = full_text.split(' ', 2)[-1].strip()
+        else:
+            item_name = full_text.split(' ', 1)[-1].strip()
+        
         item_path = os.path.join(current_path, item_name)
+        
         if item_path in selected_items:
             selected_items.remove(item_path)
+            prefix = f"{FOLDER_SYMBOL} " if is_folder else "  "
         else:
             selected_items.add(item_path)
+            prefix = f"* {FOLDER_SYMBOL}" if is_folder else "*   "
         
-        # Update the existing widget instead of creating a new one
-        focus_widget.original_widget.set_text(create_text_widget(item_name, item_path).original_widget.text)
+        new_text = f"{prefix} {item_name}"
+        
+        # Update the existing widget
+        focus_widget.original_widget.set_text(new_text)
         focus_widget._attr_map = {None: 'selected' if item_path in selected_items else None}
         focus_widget._focus_map = {None: 'selected_focus' if item_path in selected_items else 'reversed'}
 
