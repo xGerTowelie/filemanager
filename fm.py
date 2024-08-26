@@ -26,6 +26,7 @@ def create_text_widget(text, path, focus=False):
         return urwid.AttrMap(urwid.Text('* ' + text), 'selected', focus_map='selected_focus')
     return urwid.AttrMap(urwid.Text(text), None, focus_map='reversed')
 
+
 def get_directory_contents(path):
     try:
         items = os.listdir(path)
@@ -59,6 +60,19 @@ def get_directory_contents(path):
     
     return contents
 
+class NavigableDialog(urwid.WidgetWrap):
+    def __init__(self, body):
+        self.listbox = urwid.ListBox(urwid.SimpleListWalker(body))
+        super().__init__(self.listbox)
+
+    def keypress(self, size, key):
+        if key in ('j', 'down'):
+            self.listbox.keypress(size, 'down')
+        elif key in ('k', 'up'):
+            self.listbox.keypress(size, 'up')
+        else:
+            return super().keypress(size, key)
+
 def create_delete_dialog():
     selected_files_count = len(selected_items)
     confirmation_text = urwid.Text(f"Are you sure you want to delete {selected_files_count} file(s) and/or folder(s)?")
@@ -73,11 +87,13 @@ def create_delete_dialog():
         urwid.AttrMap(cancel_button, None, focus_map='reversed')
     ])
     
-    dialog = urwid.Pile([
+    dialog_body = [
         confirmation_text,
         urwid.Divider(),
         button_box
-    ])
+    ]
+    
+    dialog = NavigableDialog(dialog_body)
     
     return urwid.Overlay(
         urwid.LineBox(dialog, title="Confirm Delete"),
@@ -121,9 +137,9 @@ def create_action_dialog():
         urwid.connect_signal(button, 'click', lambda b, a=action: on_action_select(a))
         action_widgets.append(urwid.AttrMap(button, None, focus_map='reversed'))
 
-    action_pile = urwid.Pile(action_widgets)
+    dialog = NavigableDialog(action_widgets)
     return urwid.Overlay(
-        urwid.LineBox(action_pile, title="Select Action"),
+        urwid.LineBox(dialog, title="Select Action"),
         columns,
         align='center',
         valign='middle',
@@ -182,12 +198,22 @@ def toggle_selection(pane):
             selected_items.remove(item_path)
         else:
             selected_items.add(item_path)
-        new_widget = create_text_widget(focus_widget.base_widget.text, item_path)
-        listbox.body[focus_position] = new_widget
+        
+        # Update the existing widget instead of creating a new one
+        focus_widget.original_widget.set_text(create_text_widget(item_name, item_path).original_widget.text)
+        focus_widget._attr_map = {None: 'selected' if item_path in selected_items else None}
+        focus_widget._focus_map = {None: 'selected_focus' if item_path in selected_items else 'reversed'}
 
 def handle_input(key):
     global current_focus
-    if key in ('j', 'down'):
+    if isinstance(main_loop.widget, urwid.Overlay):
+        if key in ('j', 'k', 'down', 'up'):
+            main_loop.widget.top_w.original_widget.keypress((30, 20), key)
+        elif key == 'esc':
+            main_loop.widget = columns
+        else:
+            return main_loop.widget.keypress((30, 20), key)
+    elif key in ('j', 'down'):
         update_focus(current_focus, 1)
     elif key in ('k', 'up'):
         update_focus(current_focus, -1)
