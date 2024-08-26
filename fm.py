@@ -267,6 +267,8 @@ def create_action_dialog():
         min_height=8
     )
 
+import shutil
+
 def on_confirm_delete(button=None):
     global selected_items
     if not selected_items:
@@ -276,12 +278,14 @@ def on_confirm_delete(button=None):
     for item_path in selected_items:
         try:
             if os.path.isdir(item_path):
-                os.rmdir(item_path)
+                shutil.rmtree(item_path)
             else:
                 os.remove(item_path)
         except Exception as e:
-            print(f"Error deleting {item_path}: {e}")
-    
+            error_dialog = create_error_dialog(f"Error deleting {item_path}: {str(e)}")
+            main_loop.widget = error_dialog
+            return
+
     selected_items.clear()
     update_directory(0, LEFT_PANE_PATH)  # Refresh the left pane
     update_directory(1, RIGHT_PANE_PATH)  # Refresh the right pane
