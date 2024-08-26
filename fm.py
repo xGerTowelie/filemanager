@@ -59,37 +59,17 @@ def get_directory_contents(path):
     
     return contents
 
-class NavigableDialog(urwid.WidgetWrap):
-    def __init__(self, body):
-        self.listbox = urwid.ListBox(urwid.SimpleListWalker(body))
-        super().__init__(self.listbox)
-
-    def keypress(self, size, key):
-        if key in ('j', 'down'):
-            self.listbox.keypress(size, 'down')
-        elif key in ('k', 'up'):
-            self.listbox.keypress(size, 'up')
-        else:
-            return super().keypress(size, key)
-
 def create_delete_dialog():
     selected_files_count = len(selected_items)
     confirmation_text = urwid.Text(f"Are you sure you want to delete {selected_files_count} file(s) and/or folder(s)?")
-    confirm_button = urwid.Button("Yes")
-    cancel_button = urwid.Button("No")
-    
-    urwid.connect_signal(confirm_button, 'click', on_confirm_delete)
-    urwid.connect_signal(cancel_button, 'click', on_cancel_delete)
-    
-    button_box = urwid.Pile([
-        urwid.AttrMap(confirm_button, None, focus_map='reversed'),
-        urwid.AttrMap(cancel_button, None, focus_map='reversed')
-    ])
+    confirm_button = urwid.Button("Yes", on_press=on_confirm_delete)
+    cancel_button = urwid.Button("No", on_press=on_cancel_delete)
     
     dialog_body = [
         confirmation_text,
         urwid.Divider(),
-        button_box
+        urwid.AttrMap(confirm_button, None, focus_map='reversed'),
+        urwid.AttrMap(cancel_button, None, focus_map='reversed'),
     ]
     
     dialog = NavigableDialog(dialog_body)
@@ -105,7 +85,26 @@ def create_delete_dialog():
         min_height=5
     )
 
-def on_confirm_delete(button):
+def create_action_dialog():
+    action_items = ["Open in Terminal", "Open in Nvim", "Select/Deselect All"]
+    action_widgets = []
+    for action in action_items:
+        button = urwid.Button(action, on_press=lambda b, a=action: on_action_select(a))
+        action_widgets.append(urwid.AttrMap(button, None, focus_map='reversed'))
+
+    dialog = NavigableDialog(action_widgets)
+    return urwid.Overlay(
+        urwid.LineBox(dialog, title="Select Action"),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 30),
+        height=('relative', 30),
+        min_width=20,
+        min_height=8
+    )
+
+def on_confirm_delete(button=None):
     global selected_items
     if not selected_items:
         main_loop.widget = columns
@@ -125,28 +124,8 @@ def on_confirm_delete(button):
     update_directory(1, RIGHT_PANE_PATH)  # Refresh the right pane
     main_loop.widget = columns  # Close the dialog
 
-def on_cancel_delete(button):
+def on_cancel_delete(button=None):
     main_loop.widget = columns  # Close the dialog
-
-def create_action_dialog():
-    action_items = ["Open in Terminal", "Open in Nvim", "Select/Deselect All"]
-    action_widgets = []
-    for action in action_items:
-        button = urwid.Button(action)
-        urwid.connect_signal(button, 'click', lambda b, a=action: on_action_select(a))
-        action_widgets.append(urwid.AttrMap(button, None, focus_map='reversed'))
-
-    dialog = NavigableDialog(action_widgets)
-    return urwid.Overlay(
-        urwid.LineBox(dialog, title="Select Action"),
-        columns,
-        align='center',
-        valign='middle',
-        width=('relative', 30),
-        height=('relative', 30),
-        min_width=20,
-        min_height=8
-    )
 
 def on_action_select(action):
     global selected_items
@@ -248,37 +227,59 @@ def toggle_selection(pane):
             prefix = f"* {FOLDER_SYMBOL}" if is_folder else "*   "
         
         new_text = f"{prefix} {item_name}"
-        
-        # Update the existing widget
         focus_widget.original_widget.set_text(new_text)
         focus_widget._attr_map = {None: 'selected' if item_path in selected_items else None}
         focus_widget._focus_map = {None: 'selected_focus' if item_path in selected_items else 'reversed'}
 
-def create_add_dialog():
-    edit = urwid.Edit("Enter file/directory name: ")
-    ok_button = urwid.Button("OK")
-    cancel_button = urwid.Button("Cancel")
-    
-    urwid.connect_signal(ok_button, 'click', lambda _: on_add_confirm(edit.edit_text))
-    urwid.connect_signal(cancel_button, 'click', lambda _: setattr(main_loop, 'widget', columns))
-    
-    pile = urwid.Pile([
-        edit,
-        urwid.Divider(),
-        urwid.Columns([
-            urwid.AttrMap(ok_button, None, focus_map='reversed'),
-            urwid.AttrMap(cancel_button, None, focus_map='reversed')
-        ])
-    ])
-    
-    return urwid.Overlay(
-        urwid.LineBox(pile, title="Add File/Directory"),
-        columns,
-        align='center',
-        valign='middle',
-        width=('relative', 40),
-        height=('relative', 20)
-    )
+class NavigableDialog(urwid.WidgetWrap):
+    def __init__(self, body):
+        self.listbox = urwid.ListBox(urwid.SimpleListWalker(body))
+        super().__init__(self.listbox)
+
+    def keypress(self, size, key):
+        if key in ('j', 'down'):
+            self.listbox.keypress(size, 'down')
+        elif key in ('k', 'up'):
+            self.listbox.keypress(size, 'up')
+        elif key == 'enter':
+            focus_widget, focus_position = self.listbox.body.get_focus()
+            if focus_widget:
+                focus_widget.base_widget._emit('click')
+        elif key == 'esc':
+            self.cancel_action()
+        else:
+            return super().keypress(size, key)
+
+    def cancel_action(self):
+        main_loop.widget = columns  # Close the dialog
+
+class AddDialog(NavigableDialog):
+    def __init__(self):
+        self.edit = urwid.Edit("Enter file/directory name: ")
+        super().__init__([self.edit, urwid.Divider()])
+
+    def keypress(self, size, key):
+        if key == 'enter':
+            self.confirm_action()
+        else:
+            super().keypress(size, key)
+
+    def confirm_action(self):
+        on_add_confirm(self.edit.edit_text)
+
+class RenameDialog(NavigableDialog):
+    def __init__(self, old_name):
+        self.edit = urwid.Edit("Enter new name: ", edit_text=old_name)
+        super().__init__([self.edit, urwid.Divider()])
+
+    def keypress(self, size, key):
+        if key == 'enter':
+            self.confirm_action()
+        else:
+            super().keypress(size, key)
+
+    def confirm_action(self):
+        on_rename_confirm(self.edit.get_edit_text())
 
 def on_add_confirm(name):
     current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
@@ -292,36 +293,9 @@ def on_add_confirm(name):
     update_directory(current_focus, current_path)
     main_loop.widget = columns
 
-def create_rename_dialog():
+def on_rename_confirm(new_name):
     focus_widget, _ = (left_listbox if current_focus == 0 else right_listbox).body.get_focus()
     old_name = focus_widget.base_widget.text.split(' ', 1)[-1].strip()
-    
-    edit = urwid.Edit("Enter new name: ", edit_text=old_name)
-    ok_button = urwid.Button("OK")
-    cancel_button = urwid.Button("Cancel")
-    
-    urwid.connect_signal(ok_button, 'click', lambda _: on_rename_confirm(old_name, edit.edit_text))
-    urwid.connect_signal(cancel_button, 'click', lambda _: setattr(main_loop, 'widget', columns))
-    
-    pile = urwid.Pile([
-        edit,
-        urwid.Divider(),
-        urwid.Columns([
-            urwid.AttrMap(ok_button, None, focus_map='reversed'),
-            urwid.AttrMap(cancel_button, None, focus_map='reversed')
-        ])
-    ])
-    
-    return urwid.Overlay(
-        urwid.LineBox(pile, title="Rename File/Directory"),
-        columns,
-        align='center',
-        valign='middle',
-        width=('relative', 40),
-        height=('relative', 20)
-    )
-
-def on_rename_confirm(old_name, new_name):
     current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
     old_path = os.path.join(current_path, old_name)
     new_path = os.path.join(current_path, new_name)
@@ -333,12 +307,7 @@ def on_rename_confirm(old_name, new_name):
 def handle_input(key):
     global current_focus
     if isinstance(main_loop.widget, urwid.Overlay):
-        if key in ('j', 'k', 'down', 'up'):
-            main_loop.widget.top_w.original_widget.keypress((30, 20), key)
-        elif key == 'esc':
-            main_loop.widget = columns
-        else:
-            return main_loop.widget.keypress((30, 20), key)
+        main_loop.widget.keypress((30, 20), key)
     elif key in ('j', 'down'):
         update_focus(current_focus, 1)
     elif key in ('k', 'up'):
@@ -370,9 +339,11 @@ def handle_input(key):
     elif key == ' ':
         toggle_selection(current_focus)
     elif key == 'a':
-        main_loop.widget = create_add_dialog()
+        main_loop.widget = urwid.Overlay(AddDialog(), columns, align='center', valign='middle', width=('relative', 40), height=('relative', 20))
     elif key == 'r':
-        main_loop.widget = create_rename_dialog()
+        focus_widget, _ = (left_listbox if current_focus == 0 else right_listbox).body.get_focus()
+        old_name = focus_widget.base_widget.text.split(' ', 1)[-1].strip()
+        main_loop.widget = urwid.Overlay(RenameDialog(old_name), columns, align='center', valign='middle', width=('relative', 40), height=('relative', 20))
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
 
@@ -421,3 +392,4 @@ if __name__ == "__main__":
                 last_path = f.read().strip()
             os.remove(last_path_file)
             os.system(f"cd {last_path} && exec $SHELL")
+
