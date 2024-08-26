@@ -1,17 +1,12 @@
 # Filemanager
 
 ## Todos
-- [x] fix unselection, currently add more selectino starts
-- [x] using `j`,`k` for dialog navigation
 - [ ] pressing `m` to move files and folders to other pane
-- [x] implement actions menu
-- [x] add select all over actions menu
-- [ ] implement file or folder add like neo-tree
+- [ ] add dialog breaks if folder and file are provided "test/test.txt"
+- [ ] rename and add dialog can only be accepted via mouse
 - [ ] press `esc`` to cancel selection
 - [ ] press `esc` to cancel dialog
-- [ ] press `r` to rename
 - [ ] fix pane title
-- [ ] on navigatoin select first of list
 - [ ] add favorites, add them to over action menu, press `f` to quick navigate
 
 ## Current Features

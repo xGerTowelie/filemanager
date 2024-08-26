@@ -217,6 +217,13 @@ def update_directory(pane, new_path):
         paths = get_directory_contents(RIGHT_PANE_PATH)
         right_listbox.body[:] = paths
         right_pane.set_title(f"Right Pane: {RIGHT_PANE_PATH}")
+    
+    # Select the first item after updating the directory
+    if paths:
+        if pane == 0:
+            left_listbox.focus_position = 0
+        else:
+            right_listbox.focus_position = 0
 
 def toggle_selection(pane):
     listbox = left_listbox if pane == 0 else right_listbox
@@ -246,6 +253,82 @@ def toggle_selection(pane):
         focus_widget.original_widget.set_text(new_text)
         focus_widget._attr_map = {None: 'selected' if item_path in selected_items else None}
         focus_widget._focus_map = {None: 'selected_focus' if item_path in selected_items else 'reversed'}
+
+def create_add_dialog():
+    edit = urwid.Edit("Enter file/directory name: ")
+    ok_button = urwid.Button("OK")
+    cancel_button = urwid.Button("Cancel")
+    
+    urwid.connect_signal(ok_button, 'click', lambda _: on_add_confirm(edit.edit_text))
+    urwid.connect_signal(cancel_button, 'click', lambda _: setattr(main_loop, 'widget', columns))
+    
+    pile = urwid.Pile([
+        edit,
+        urwid.Divider(),
+        urwid.Columns([
+            urwid.AttrMap(ok_button, None, focus_map='reversed'),
+            urwid.AttrMap(cancel_button, None, focus_map='reversed')
+        ])
+    ])
+    
+    return urwid.Overlay(
+        urwid.LineBox(pile, title="Add File/Directory"),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 40),
+        height=('relative', 20)
+    )
+
+def on_add_confirm(name):
+    current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
+    new_path = os.path.join(current_path, name)
+    
+    if name.endswith('/'):
+        os.makedirs(new_path, exist_ok=True)
+    else:
+        open(new_path, 'a').close()
+    
+    update_directory(current_focus, current_path)
+    main_loop.widget = columns
+
+def create_rename_dialog():
+    focus_widget, _ = (left_listbox if current_focus == 0 else right_listbox).body.get_focus()
+    old_name = focus_widget.base_widget.text.split(' ', 1)[-1].strip()
+    
+    edit = urwid.Edit("Enter new name: ", edit_text=old_name)
+    ok_button = urwid.Button("OK")
+    cancel_button = urwid.Button("Cancel")
+    
+    urwid.connect_signal(ok_button, 'click', lambda _: on_rename_confirm(old_name, edit.edit_text))
+    urwid.connect_signal(cancel_button, 'click', lambda _: setattr(main_loop, 'widget', columns))
+    
+    pile = urwid.Pile([
+        edit,
+        urwid.Divider(),
+        urwid.Columns([
+            urwid.AttrMap(ok_button, None, focus_map='reversed'),
+            urwid.AttrMap(cancel_button, None, focus_map='reversed')
+        ])
+    ])
+    
+    return urwid.Overlay(
+        urwid.LineBox(pile, title="Rename File/Directory"),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 40),
+        height=('relative', 20)
+    )
+
+def on_rename_confirm(old_name, new_name):
+    current_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
+    old_path = os.path.join(current_path, old_name)
+    new_path = os.path.join(current_path, new_name)
+    
+    os.rename(old_path, new_path)
+    update_directory(current_focus, current_path)
+    main_loop.widget = columns
 
 def handle_input(key):
     global current_focus
@@ -286,6 +369,10 @@ def handle_input(key):
             update_directory(current_focus, parent_path)
     elif key == ' ':
         toggle_selection(current_focus)
+    elif key == 'a':
+        main_loop.widget = create_add_dialog()
+    elif key == 'r':
+        main_loop.widget = create_rename_dialog()
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
 
