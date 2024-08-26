@@ -4,25 +4,29 @@ import subprocess
 import argparse
 import shutil
 
-# Define default paths
 DEFAULT_LEFT_PANE_PATH = "/home/towelie/"
 DEFAULT_RIGHT_PANE_PATH = "/home/towelie/"
 overwrite_confirmed = False
 copy_move_confirmed = False
 
-# Parse command-line arguments
 parser = argparse.ArgumentParser(description="A simple file manager.")
 parser.add_argument('path', nargs='?', default=DEFAULT_LEFT_PANE_PATH, help="Initial path for the left pane.")
 args = parser.parse_args()
 
-# Set paths based on arguments
 LEFT_PANE_PATH = args.path
 RIGHT_PANE_PATH = DEFAULT_RIGHT_PANE_PATH
 
-# Define symbols
 FOLDER_SYMBOL = "📁"
 
 selected_items = set()
+
+def shorten_path(path):
+    parts = path.split(os.sep)
+
+    if len(parts) > 3:
+        return f"...{os.sep}{parts[-2]}{os.sep}{parts[-1]}{os.sep}"
+    else:
+        return path
 
 def copy_items(source_path, dest_path):
     for item in selected_items:
@@ -66,7 +70,7 @@ def create_copy_move_dialog(operation):
 def on_copy_move_confirm(confirmed, operation):
     global copy_move_confirmed, selected_items
     copy_move_confirmed = confirmed
-    main_loop.widget = columns  # Close the dialog
+    main_loop.widget = columns
 
     if confirmed:
         source_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
@@ -115,7 +119,7 @@ def on_overwrite_confirm(confirmed, operation):
             main_loop.widget = error_dialog
             return
 
-    main_loop.widget = columns  # Close the dialog
+    main_loop.widget = columns
     
 def create_error_dialog(error_message):
     text = urwid.Text(f"An error occurred: {error_message}")
@@ -287,12 +291,12 @@ def on_confirm_delete(button=None):
             return
 
     selected_items.clear()
-    update_directory(0, LEFT_PANE_PATH)  # Refresh the left pane
-    update_directory(1, RIGHT_PANE_PATH)  # Refresh the right pane
-    main_loop.widget = columns  # Close the dialog
+    update_directory(0, LEFT_PANE_PATH)
+    update_directory(1, RIGHT_PANE_PATH)
+    main_loop.widget = columns
 
 def on_cancel_delete(button=None):
-    main_loop.widget = columns  # Close the dialog
+    main_loop.widget = columns
 
 def on_action_select(action):
     global selected_items
@@ -309,7 +313,7 @@ def on_action_select(action):
     elif action == "Select/Deselect All":
         toggle_select_all(current_focus)
     
-    main_loop.widget = columns  # Close the dialog
+    main_loop.widget = columns
 
 def toggle_select_all(pane):
     global selected_items
@@ -320,13 +324,10 @@ def toggle_select_all(pane):
                     for item in listbox.body)
 
     if all_items.issubset(selected_items):
-        # If all items are selected, deselect all
         selected_items -= all_items
     else:
-        # Otherwise, select all
         selected_items |= all_items
 
-    # Update the display
     for i, item in enumerate(listbox.body):
         item_path = os.path.join(current_path, item.base_widget.text.split(' ', 1)[-1].strip())
         is_folder = item.base_widget.text.startswith(FOLDER_SYMBOL) or item.base_widget.text.startswith(f"* {FOLDER_SYMBOL}")
@@ -357,14 +358,13 @@ def update_directory(pane, new_path):
         LEFT_PANE_PATH = new_path
         paths = get_directory_contents(LEFT_PANE_PATH)
         left_listbox.body[:] = paths
-        left_pane.set_title(f"Left Pane: {LEFT_PANE_PATH}")
+        left_pane.set_title(f"{shorten_path(LEFT_PANE_PATH)}")
     else:
         RIGHT_PANE_PATH = new_path
         paths = get_directory_contents(RIGHT_PANE_PATH)
         right_listbox.body[:] = paths
-        right_pane.set_title(f"Right Pane: {RIGHT_PANE_PATH}")
+        right_pane.set_title(f"{shorten_path(RIGHT_PANE_PATH)}")
     
-    # Select the first item after updating the directory
     if paths:
         if pane == 0:
             left_listbox.focus_position = 0
@@ -419,7 +419,7 @@ class NavigableDialog(urwid.WidgetWrap):
         return key
 
     def cancel_action(self):
-        main_loop.widget = columns  # Close the dialog
+        main_loop.widget = columns
 
 class AddDialog(urwid.WidgetWrap):
     def __init__(self):
@@ -485,13 +485,9 @@ def on_add_confirm(name):
     
     try:
         if name.endswith('/'):
-            # It's a directory
             os.makedirs(new_path, exist_ok=True)
         else:
-            # It's a file
-            # Ensure the directory exists
             os.makedirs(os.path.dirname(new_path), exist_ok=True)
-            # Create the file
             open(new_path, 'a').close()
         
         update_directory(current_focus, current_path)
@@ -577,25 +573,19 @@ def handle_input(key):
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
 
-# Get the directory contents for both panes
 left_paths = get_directory_contents(LEFT_PANE_PATH)
 right_paths = get_directory_contents(RIGHT_PANE_PATH)
 
-# Create ListBox widgets for each pane
 left_listbox = urwid.ListBox(urwid.SimpleListWalker(left_paths))
 right_listbox = urwid.ListBox(urwid.SimpleListWalker(right_paths))
 
-# Add borders to the panes and embed the ListBoxes
-left_pane = urwid.LineBox(left_listbox, title=f"Left Pane: {LEFT_PANE_PATH}")
-right_pane = urwid.LineBox(right_listbox, title=f"Right Pane: {RIGHT_PANE_PATH}")
+left_pane = urwid.LineBox(left_listbox, title=f"{shorten_path(LEFT_PANE_PATH)}")
+right_pane = urwid.LineBox(right_listbox, title=f"{shorten_path(RIGHT_PANE_PATH)}")
 
-# Combine the two panes horizontally
 columns = urwid.Columns([left_pane, right_pane])
 
-# Track current focus (0 for left pane, 1 for right pane)
 current_focus = 0
 
-# Initialize focus for both panes
 if left_paths:
     left_listbox.body.set_focus(0)
 if right_paths:
@@ -607,15 +597,12 @@ palette = [
     ('selected_focus', 'white', 'light blue'),
 ]
 
-# Create a main loop to render the UI
 main_loop = urwid.MainLoop(columns, unhandled_input=handle_input, palette=palette)
 
-# Run the main loop
 if __name__ == "__main__":
     try:
         main_loop.run()
     finally:
-        # Check if we need to open a terminal
         last_path_file = os.path.expanduser("~/.last_fm_path")
         if os.path.exists(last_path_file):
             with open(last_path_file, "r") as f:
