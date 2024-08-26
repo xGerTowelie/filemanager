@@ -41,28 +41,6 @@ def move_items(source_path, dest_path):
             raise FileExistsError(dest_item)
         shutil.move(item, dest_item)
 
-def create_overwrite_dialog(operation):
-    text = urwid.Text(f"Some files already exist. Overwrite?")
-    ok_button = urwid.Button("OK", on_press=lambda _: on_overwrite_confirm(True, operation))
-    
-    dialog_body = [
-        text,
-        urwid.Divider(),
-        urwid.AttrMap(ok_button, None, focus_map='reversed')
-    ]
-    dialog = NavigableDialog(dialog_body)
-    
-    return urwid.Overlay(
-        urwid.LineBox(dialog, title="Confirm Overwrite"),
-        columns,
-        align='center',
-        valign='middle',
-        width=('relative', 30),
-        height=('relative', 20),
-        min_width=20,
-        min_height=5
-    )
-
 def create_copy_move_dialog(operation):
     text = urwid.Text(f"Are you sure you want to {operation} {len(selected_items)} item(s)?")
     ok_button = urwid.Button("OK", on_press=lambda _: on_copy_move_confirm(True, operation))
@@ -113,49 +91,53 @@ def clear_selected_items():
     update_directory(0, LEFT_PANE_PATH)
     update_directory(1, RIGHT_PANE_PATH)
 
-def create_overwrite_dialog(item):
-    text = urwid.Text(f"'{os.path.basename(item)}' already exists. Overwrite?")
-    yes_button = urwid.Button("Yes", on_press=lambda _: on_overwrite_confirm(True))
-    no_button = urwid.Button("No", on_press=lambda _: on_overwrite_confirm(False))
-    
-    buttons = urwid.Columns([
-        ('weight', 1, urwid.AttrMap(yes_button, None, focus_map='reversed')),
-        ('weight', 1, urwid.AttrMap(no_button, None, focus_map='reversed')),
-    ])
-    
-    dialog_body = [text, urwid.Divider(), buttons]
-    dialog = NavigableDialog(dialog_body)
-    
-    return urwid.Overlay(
-        urwid.LineBox(dialog, title="Confirm Overwrite"),
-        columns,
-        align='center',
-        valign='middle',
-        width=('relative', 30),
-        height=('relative', 20),
-        min_width=20,
-        min_height=5
-    )
-
 def confirm_overwrite(item):
     main_loop.widget = create_overwrite_dialog(item)
     main_loop.run()
     return overwrite_confirmed
 
 def on_overwrite_confirm(confirmed, operation):
-    main_loop.widget = columns  # Close the dialog
+    global main_loop
     if confirmed:
         source_path = LEFT_PANE_PATH if current_focus == 0 else RIGHT_PANE_PATH
         dest_path = RIGHT_PANE_PATH if current_focus == 0 else LEFT_PANE_PATH
         
-        if operation == "copy":
-            copy_items_force(source_path, dest_path)
-        elif operation == "move":
-            move_items_force(source_path, dest_path)
-        
-        update_directory(0, LEFT_PANE_PATH)
-        update_directory(1, RIGHT_PANE_PATH)
-        clear_selected_items()
+        try:
+            if operation == "copy":
+                copy_items_force(source_path, dest_path)
+            elif operation == "move":
+                move_items_force(source_path, dest_path)
+            update_directory(0, LEFT_PANE_PATH)
+            update_directory(1, RIGHT_PANE_PATH)
+            clear_selected_items()
+        except Exception as e:
+            error_dialog = create_error_dialog(str(e))
+            main_loop.widget = error_dialog
+            return
+
+    main_loop.widget = columns  # Close the dialog
+    
+def create_error_dialog(error_message):
+    text = urwid.Text(f"An error occurred: {error_message}")
+    ok_button = urwid.Button("OK", on_press=lambda _: setattr(main_loop, 'widget', columns))
+    
+    dialog_body = [
+        text,
+        urwid.Divider(),
+        urwid.AttrMap(ok_button, None, focus_map='reversed')
+    ]
+    dialog = NavigableDialog(dialog_body)
+    
+    return urwid.Overlay(
+        urwid.LineBox(dialog, title="Error"),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 50),
+        height=('relative', 30),
+        min_width=20,
+        min_height=5
+    )
 
 def copy_items_force(source_path, dest_path):
     for item in selected_items:
@@ -180,15 +162,32 @@ def confirm_overwrite(item):
     main_loop.run()
     return overwrite_confirmed
 
-def on_overwrite_confirm(confirmed):
-    global overwrite_confirmed
-    overwrite_confirmed = confirmed
-    raise urwid.ExitMainLoop()
-
 def create_text_widget(text, path, focus=False):
     if path in selected_items:
         return urwid.AttrMap(urwid.Text('* ' + text), 'selected', focus_map='selected_focus')
     return urwid.AttrMap(urwid.Text(text), None, focus_map='reversed')
+
+def create_overwrite_dialog(operation):
+    text = urwid.Text(f"Some files already exist. Overwrite?")
+    ok_button = urwid.Button("OK", on_press=lambda _: on_overwrite_confirm(True, operation))
+    
+    dialog_body = [
+        text,
+        urwid.Divider(),
+        urwid.AttrMap(ok_button, None, focus_map='reversed')
+    ]
+    dialog = NavigableDialog(dialog_body)
+    
+    return urwid.Overlay(
+        urwid.LineBox(dialog, title="Confirm Overwrite"),
+        columns,
+        align='center',
+        valign='middle',
+        width=('relative', 30),
+        height=('relative', 20),
+        min_width=20,
+        min_height=5
+    )
 
 def get_directory_contents(path):
     try:
@@ -409,7 +408,7 @@ class NavigableDialog(urwid.WidgetWrap):
             focus_widget, _ = self.listbox.body.get_focus()
             if isinstance(focus_widget, urwid.AttrMap) and isinstance(focus_widget.original_widget, urwid.Button):
                 focus_widget.original_widget._emit('click')
-                return None
+            return None
         elif key == 'esc':
             self.cancel_action()
             return None
