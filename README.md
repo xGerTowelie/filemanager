@@ -6,10 +6,10 @@
 - [ ] implement tp command if global tp config is found
 
 ## Current Features
-- General:
+**General**:
 - [x] press `q`, `Q` to exit
 - [x] press `o` to open action dialog
-- Navigation:
+**Navigation**:
 - [x] `j`, `k`: up and down
 - [x] `h`, `l`: for switching panes
 - [x] `gg`, `G`: jump to fist/last
@@ -17,7 +17,7 @@
 - [x] `enter`: jump into a folder
 - [x] `backspace`: navigate back
 - [x] `0`: jump into home directory
-- File Interaction:
+**File Interaction**:
 - [x] `space`: toggle selection
 - [x] `d`: delete selected
 - [x] `m`: move to other pane
