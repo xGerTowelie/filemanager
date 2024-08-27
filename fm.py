@@ -5,8 +5,8 @@ import argparse
 import shutil
 
 FOLDER_SYMBOL = "📁"
-DEFAULT_LEFT_PANE_PATH = "/home/towelie/"
-DEFAULT_RIGHT_PANE_PATH = "/home/towelie/"
+DEFAULT_LEFT_PANE_PATH = os.path.expanduser("~")
+DEFAULT_RIGHT_PANE_PATH = os.path.expanduser("~")
 
 overwrite_confirmed = False
 copy_move_confirmed = False

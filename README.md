@@ -7,7 +7,7 @@
 
 ## Current Features
 - General:
-- [x] press `q` to exit
+- [x] press `q`, `Q` to exit
 - [x] press `o` to open action dialog
 - Navigation:
 - [x] `j`, `k`: up and down
