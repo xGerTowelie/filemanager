@@ -4,8 +4,10 @@ import subprocess
 import argparse
 import shutil
 
+FOLDER_SYMBOL = "📁"
 DEFAULT_LEFT_PANE_PATH = "/home/towelie/"
 DEFAULT_RIGHT_PANE_PATH = "/home/towelie/"
+
 overwrite_confirmed = False
 copy_move_confirmed = False
 
@@ -13,12 +15,25 @@ parser = argparse.ArgumentParser(description="A simple file manager.")
 parser.add_argument('path', nargs='?', default=DEFAULT_LEFT_PANE_PATH, help="Initial path for the left pane.")
 args = parser.parse_args()
 
+LAST_KEY = None
 LEFT_PANE_PATH = args.path
 RIGHT_PANE_PATH = DEFAULT_RIGHT_PANE_PATH
 
-FOLDER_SYMBOL = "📁"
 
 selected_items = set()
+
+def jump_to_opposite(pane):
+    listbox = left_listbox if pane == 0 else right_listbox
+    current_item = listbox.body[listbox.focus_position].base_widget.text
+    is_current_folder = current_item.startswith(FOLDER_SYMBOL) or current_item.startswith(f"* {FOLDER_SYMBOL}")
+    
+    for i, item in enumerate(listbox.body):
+        item_text = item.base_widget.text
+        is_folder = item_text.startswith(FOLDER_SYMBOL) or item_text.startswith(f"* {FOLDER_SYMBOL}")
+        
+        if is_current_folder != is_folder:
+            listbox.focus_position = i
+            break
 
 def shorten_path(path):
     parts = path.split(os.sep)
@@ -509,8 +524,20 @@ def on_rename_confirm(new_name):
     update_directory(current_focus, current_path)
     main_loop.widget = columns
 
+def maintain_focus_position(from_pane, to_pane):
+    from_listbox = left_listbox if from_pane == 0 else right_listbox
+    to_listbox = right_listbox if from_pane == 0 else left_listbox
+    
+    current_position = from_listbox.focus_position
+    max_position = len(to_listbox.body) - 1
+    
+    if current_position > max_position:
+        to_listbox.focus_position = max_position
+    else:
+        to_listbox.focus_position = current_position
+
 def handle_input(key):
-    global current_focus
+    global current_focus, LAST_KEY
 
     if isinstance(main_loop.widget, urwid.Overlay):
         return main_loop.widget.keypress((30, 20), key)
@@ -522,6 +549,34 @@ def handle_input(key):
     elif key == 'm':
         if selected_items:
             main_loop.widget = create_copy_move_dialog("move")
+
+    elif key == 'g':
+        if LAST_KEY == 'g':
+            listbox = left_listbox if current_focus == 0 else right_listbox
+            listbox.focus_position = 0
+            LAST_KEY = None
+
+    elif key == 'G':
+        listbox = left_listbox if current_focus == 0 else right_listbox
+        listbox.focus_position = len(listbox.body) - 1
+
+
+    elif key == '0':
+        home_dir = os.path.expanduser("~")
+        update_directory(current_focus, home_dir)           
+
+    elif key == 'f':
+        jump_to_opposite(current_focus)
+
+    elif key == 'l':
+        current_focus = 1
+        columns.set_focus(1)
+        maintain_focus_position(0, 1)
+
+    elif key == 'h':
+        current_focus = 0
+        columns.set_focus(0)
+        maintain_focus_position(1, 0)
 
     elif key in ('j', 'down'):
         update_focus(current_focus, 1)
@@ -572,6 +627,8 @@ def handle_input(key):
 
     elif key in ('q', 'Q'):
         raise urwid.ExitMainLoop()
+
+    LAST_KEY = key
 
 left_paths = get_directory_contents(LEFT_PANE_PATH)
 right_paths = get_directory_contents(RIGHT_PANE_PATH)

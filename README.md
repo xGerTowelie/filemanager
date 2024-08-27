@@ -1,23 +1,29 @@
 # Filemanager
 
 ## Todos
-- [ ] pressing `m` to move files and folders to other pane
-- [ ] add dialog breaks if folder and file are provided "test/test.txt"
-- [ ] rename and add dialog can only be accepted via mouse
-- [ ] press `esc`` to cancel selection
-- [ ] press `esc` to cancel dialog
-- [ ] fix pane title
-- [ ] add favorites, add them to over action menu, press `f` to quick navigate
+- [ ] add bookmarks of popular directories (`b` to view and `B` to add)
+- [ ] implement nvim only for files (come back to fm after if possible)
+- [ ] implement tp command if global tp config is found
 
 ## Current Features
+- General:
 - [x] press `q` to exit
-- [x] navigation on `j`, `k` for up and down
-- [x] navigation on `h`, `l` for switching panes
-- [x] press `enter` to navigate into a folder
-- [x] press `backspace` to navigate back
-- [x] press `space` to toggle selection of files/folders
-- [x] press `d` to delete selected files/folders
 - [x] press `o` to open action dialog
+- Navigation:
+- [x] `j`, `k`: up and down
+- [x] `h`, `l`: for switching panes
+- [x] `gg`, `G`: jump to fist/last
+- [x] `f`: swapping between first folder/file
+- [x] `enter`: jump into a folder
+- [x] `backspace`: navigate back
+- [x] `0`: jump into home directory
+- File Interaction:
+- [x] `space`: toggle selection
+- [x] `d`: delete selected
+- [x] `m`: move to other pane
+- [x] `c`: copy to other pane
+- [x] `r`: rename
+- [x] `a`: add new file or folder (also possible: `/temp/test.txt`)
 
 
 ## Installation
